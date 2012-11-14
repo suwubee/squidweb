@@ -1,4 +1,4 @@
-squidweb
+Squidweb
 ========
 
 Requirements
