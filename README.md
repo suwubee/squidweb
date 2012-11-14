@@ -1,2 +1,7 @@
 squidweb
 ========
+
+Requirements
+------------
+
+mysql-devel
