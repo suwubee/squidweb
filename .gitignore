@@ -1,5 +1,5 @@
 # Object files
-*.o
+#*.o
 
 # Libraries
 *.lib
@@ -15,3 +15,10 @@
 *.exe
 *.out
 *.app
+sw
+
+# Logs
+sw-error.log
+
+# Config
+squidweb.ini

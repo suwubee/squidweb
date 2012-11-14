@@ -1,0 +1,16 @@
+[mysql]
+hostname = localhost
+username = root
+password = 
+database = squidweb
+
+[redis]
+hostname = localhost
+port = 6379
+
+[rails]
+hostname = localhost
+port = 3000
+
+[log]
+error = sw-error.log
