@@ -8,7 +8,7 @@
 #include "hiredis.h"
 #include "iniparser.h"
 
-#define INIFILE "squidweb.ini"
+#define INIFILE "/etc/squid/squidweb.ini"
 
 typedef struct request {
   char line[8000];
@@ -98,7 +98,7 @@ int main(int argc, char * argv[]){
  
   char * mysql_hostname = iniparser_getstring(ini, "mysql:hostname", "localhost");
   char * mysql_username = iniparser_getstring(ini, "mysql:username", "root");
-  char * mysql_password = iniparser_getstring(ini, "mysql:password", "");
+  char * mysql_password = iniparser_getstring(ini, "mysql:password", NULL);
   char * mysql_database = iniparser_getstring(ini, "mysql:database", "squidweb");
  
   /* Open Mysql connection */
@@ -174,7 +174,7 @@ int main(int argc, char * argv[]){
         strcpy(r.reply, rails_accessdenied);
 
       /* Logging */
-      sprintf(sql, "INSERT INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (DATETIME('now', 'localtime'), '%s', '%s', '%s')", r.url, user->element[0]->str, strcmp(r.reply," ") ? "true" : "false");
+      sprintf(sql, "INSERT INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%s')", r.url, user->element[0]->str, strcmp(r.reply," ") ? "true" : "false");
       if (mysql_query(conn, sql)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         exit(1);
