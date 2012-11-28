@@ -85,7 +85,7 @@ int main(int argc, char * argv[]){
     exit(1);
   }
 
-  // Mysql vars 
+  // Mysql parameters 
   MYSQL *conn;
   conn = mysql_init(NULL);
   char sql[500];
@@ -101,7 +101,7 @@ int main(int argc, char * argv[]){
       exit(1);
    }
 
-  // Redis vars 
+  // Redis parameters
   redisContext *c;
   redisReply *user;
   redisReply *reply;
