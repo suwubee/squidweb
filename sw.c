@@ -121,11 +121,14 @@ int main(int argc, char * argv[]){
   char * rails_hostname = iniparser_getstring(ini, "rails:hostname", "localhost");
   int rails_port = iniparser_getint(ini, "rails:port", 3000);
   
-  char rails_usernotfound[100];
-  char rails_accessdenied[100];
+  const size_t sLength = strlen(rails_hostname);
 
-  sprintf(rails_usernotfound, "http://%s:%d/usernotfound", rails_hostname, rails_port);
-  sprintf(rails_accessdenied, "http://%s:%d/denied", rails_hostname, rails_port);
+  // Initialize the varibles with the size of the rails_hostname + size of url + size of max number port size (5 numbers)
+  char *const rails_usernotfound = malloc(sLength+22+5);
+  char *const rails_accessdenied = malloc(sLength+16+5);
+
+  snprintf(rails_usernotfound, sizeof rails_usernotfound, "http://%.100s:%d/usernotfound", rails_hostname, rails_port);
+  snprintf(rails_accessdenied, sizeof rails_accessdenied, "http://%s:%d/denied", rails_hostname, rails_port);
 
   // Ready to parse requests 
   Request r;
