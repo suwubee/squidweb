@@ -167,7 +167,7 @@ int main(int argc, char * argv[]){
         strcpy(r.reply, rails_accessdenied);
 
       // Access logs 
-      sprintf(sql, "INSERT INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%s')", r.url, user->element[0]->str, strcmp(r.reply," ") ? "true" : "false");
+      sprintf(sql, "INSERT INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%d')", r.url, user->element[0]->str, strcmp(r.reply," ") ? 1 : 0);
       if (mysql_query(conn, sql)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         exit(1);
