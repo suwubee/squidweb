@@ -85,7 +85,7 @@ int main(int argc, char * argv[]){
     exit(1);
   }
 
-  // Mysql parameters 
+  // MySQL parameters 
   MYSQL *conn;
   conn = mysql_init(NULL);
   char sql[500];
@@ -95,9 +95,9 @@ int main(int argc, char * argv[]){
   char * mysql_password = iniparser_getstring(ini, "mysql:password", NULL);
   char * mysql_database = iniparser_getstring(ini, "mysql:database", "squidweb");
  
-  // Open Mysql connection 
+  // Open MySQL connection 
   if (!mysql_real_connect(conn, mysql_hostname, mysql_username, mysql_password, mysql_database, 0, NULL, 0)) {
-      fprintf(stderr, "%s Mysql connection error (PID %d):  %s\n", timenow(), getpid(), mysql_error(conn));
+      fprintf(stderr, "%s MySQL connection error (PID %d):  %s\n", timenow(), getpid(), mysql_error(conn));
       exit(1);
    }
 
@@ -167,9 +167,9 @@ int main(int argc, char * argv[]){
         strcpy(r.reply, rails_accessdenied);
 
       // Access logs 
-      sprintf(sql, "INSERT INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%d')", r.url, user->element[0]->str, strcmp(r.reply," ") ? 1 : 0);
+      sprintf(sql, "INSERT DELAYED INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%d')", r.url, user->element[0]->str, strcmp(r.reply," ") ? 1 : 0);
       if (mysql_query(conn, sql)) {
-        fprintf(stderr, "%s\n", mysql_error(conn));
+        fprintf(stderr, "%s MySQL error: %s\n", timenow(), mysql_error(conn));
         exit(1);
     }
 
