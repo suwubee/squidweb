@@ -8,7 +8,7 @@
 #include "hiredis.h"
 #include "iniparser.h"
 
-#define INIFILE "squidweb.ini"
+#define INIFILE "/etc/squid/squidweb.ini"
 
 typedef struct request {
   char line[8000];
