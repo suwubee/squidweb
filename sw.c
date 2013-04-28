@@ -103,8 +103,6 @@ int main(int argc, char * argv[]){
 
   // Redis parameters
   redisContext *c;
-  redisReply *user;
-  redisReply *reply;
 
   char * redis_hostname = iniparser_getstring(ini, "redis:hostname", "localhost");
   int redis_port = iniparser_getint(ini, "redis:port", 6379);
@@ -134,12 +132,17 @@ int main(int argc, char * argv[]){
 
     filter(&r);
 
-    user=redisCommand(c, "HMGET %s id group restrict", r.ip);
+    redisReply *user=redisCommand(c, "HMGET %s id group restrict", r.ip);
     // user->element[0] = id (integer)
     // user->element[1] = group (integer)
     // user->element[2] = restrict (integer)
      
-    if (user->type == REDIS_REPLY_ERROR) {
+    if (user == NULL){
+      fprintf(stderr, "%s Redis error.\n", timenow());
+      exit(1);
+    }
+
+    else if (user->type == REDIS_REPLY_ERROR) {
       fprintf(stderr, "%s Redis error: %s\n", timenow(), user->str);
       freeReplyObject(user);
       exit(1);
@@ -152,16 +155,22 @@ int main(int argc, char * argv[]){
 
       fprintf(stdout, "%s\n", r.reply);
       fflush(stdout);
-
-      continue;
     } 
 
     else { // User found
 
       // Verify if the domain belongs to users group 
-      reply=redisCommand(c, "SISMEMBER %s %s", r.domain, user->element[1]->str);
+      redisReply *reply=redisCommand(c, "SISMEMBER %s %s", r.domain, user->element[1]->str);
 
-      if (reply->type == REDIS_REPLY_ERROR) {
+      if (reply == NULL) {
+        fprintf(stderr, "%s Redis error.\n", timenow());
+        
+        freeReplyObject(user);
+        
+        exit(1);
+      }
+
+      else if (reply->type == REDIS_REPLY_ERROR) {
         fprintf(stderr, "%s Redis error: %s\n", timenow(), reply->str);
 
         freeReplyObject(user);
