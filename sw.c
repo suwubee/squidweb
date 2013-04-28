@@ -64,8 +64,6 @@ void filter(Request * r){
 
 int main(int argc, char * argv[]){
 
-  pid_t child;
-
   // Make standard output line buffered 
   if(setvbuf(stdout, NULL, _IOLBF, 0)!=0){
     fprintf(stderr, "Sorry unable to configure stdout buffer\n");
@@ -82,8 +80,6 @@ int main(int argc, char * argv[]){
   // Redirect standart output error to log_error 
   char * log_error = iniparser_getstring(ini, "log:error", "sw-error.log"); 
 
-  printf("log_error %s\n", log_error);
-
   if (freopen(log_error, "a", stderr) == NULL) {
     printf("Error could not open or create a log file (%s).\n", log_error);
     exit(1);
@@ -99,9 +95,6 @@ int main(int argc, char * argv[]){
   char * mysql_password = iniparser_getstring(ini, "mysql:password", NULL);
   char * mysql_database = iniparser_getstring(ini, "mysql:database", "squidweb");
 
-  printf("Hostname %s username %s password %s database %s\n", mysql_hostname, mysql_username, mysql_password, mysql_database);
-  exit(0);
- 
   // Open MySQL connection 
   if (!mysql_real_connect(conn, mysql_hostname, mysql_username, mysql_password, mysql_database, 0, NULL, 0)) {
       fprintf(stderr, "%s MySQL connection error (PID %d):  %s\n", timenow(), getpid(), mysql_error(conn));
@@ -138,6 +131,7 @@ int main(int argc, char * argv[]){
   Request r;
 
   while (fgets(r.line, sizeof(r.line), stdin) != NULL) {
+
     filter(&r);
 
     user=redisCommand(c, "HMGET %s id group restrict", r.ip);
@@ -147,11 +141,19 @@ int main(int argc, char * argv[]){
      
     if (user->type == REDIS_REPLY_ERROR) {
       fprintf(stderr, "%s Redis error: %s\n", timenow(), user->str);
+      freeReplyObject(user);
       exit(1);
     }
 
     else if (user->element[0]->str == NULL) { // User not found
       strcpy(r.reply, rails_usernotfound);
+
+      freeReplyObject(user);
+
+      fprintf(stdout, "%s\n", r.reply);
+      fflush(stdout);
+
+      continue;
     } 
 
     else { // User found
@@ -159,8 +161,12 @@ int main(int argc, char * argv[]){
       // Verify if the domain belongs to users group 
       reply=redisCommand(c, "SISMEMBER %s %s", r.domain, user->element[1]->str);
 
-      if(reply->type == REDIS_REPLY_ERROR){
+      if (reply->type == REDIS_REPLY_ERROR) {
         fprintf(stderr, "%s Redis error: %s\n", timenow(), reply->str);
+
+        freeReplyObject(user);
+        freeReplyObject(reply);
+
         exit(1);
       }
 
@@ -176,7 +182,7 @@ int main(int argc, char * argv[]){
         strcpy(r.reply, rails_accessdenied);
       }
 
-      child = fork();
+      pid_t child = fork();
 
       if (child < 0) {
         fprintf(stderr, "%s Fork Error: Failed to fork child, access log not saved.", timenow());
@@ -192,15 +198,15 @@ int main(int argc, char * argv[]){
       }
 
       freeReplyObject(reply);
+      freeReplyObject(user);
+
+      if (child != 0) {
+        fprintf(stdout, "%s\n", r.reply);
+        fflush(stdout);
+      }
 
     }
 
-    freeReplyObject(user);
-
-    if (child != 0) {
-      fprintf(stdout, "%s\n", r.reply);
-      fflush(stdout);
-    }
   }
 
   return 0;
