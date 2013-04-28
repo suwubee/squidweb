@@ -8,7 +8,7 @@
 #include "hiredis.h"
 #include "iniparser.h"
 
-#define INIFILE "/etc/squid/squidweb.ini"
+#define INIFILE "squidweb.ini"
 
 typedef struct request {
   char line[8000];
@@ -64,6 +64,8 @@ void filter(Request * r){
 
 int main(int argc, char * argv[]){
 
+  pid_t child;
+
   // Make standard output line buffered 
   if(setvbuf(stdout, NULL, _IOLBF, 0)!=0){
     fprintf(stderr, "Sorry unable to configure stdout buffer\n");
@@ -80,7 +82,9 @@ int main(int argc, char * argv[]){
   // Redirect standart output error to log_error 
   char * log_error = iniparser_getstring(ini, "log:error", "sw-error.log"); 
 
-  if(freopen(log_error, "a", stderr)==NULL){
+  printf("log_error %s\n", log_error);
+
+  if (freopen(log_error, "a", stderr) == NULL) {
     printf("Error could not open or create a log file (%s).\n", log_error);
     exit(1);
   }
@@ -94,6 +98,9 @@ int main(int argc, char * argv[]){
   char * mysql_username = iniparser_getstring(ini, "mysql:username", "root");
   char * mysql_password = iniparser_getstring(ini, "mysql:password", NULL);
   char * mysql_database = iniparser_getstring(ini, "mysql:database", "squidweb");
+
+  printf("Hostname %s username %s password %s database %s\n", mysql_hostname, mysql_username, mysql_password, mysql_database);
+  exit(0);
  
   // Open MySQL connection 
   if (!mysql_real_connect(conn, mysql_hostname, mysql_username, mysql_password, mysql_database, 0, NULL, 0)) {
@@ -130,7 +137,7 @@ int main(int argc, char * argv[]){
   // Ready to parse requests 
   Request r;
 
-  while(fgets(r.line, sizeof(r.line), stdin)!=NULL){
+  while (fgets(r.line, sizeof(r.line), stdin) != NULL) {
     filter(&r);
 
     user=redisCommand(c, "HMGET %s id group restrict", r.ip);
@@ -138,13 +145,14 @@ int main(int argc, char * argv[]){
     // user->element[1] = group (integer)
     // user->element[2] = restrict (integer)
      
-    if(user->type==REDIS_REPLY_ERROR){
+    if (user->type == REDIS_REPLY_ERROR) {
       fprintf(stderr, "%s Redis error: %s\n", timenow(), user->str);
       exit(1);
     }
 
-    else if(user->element[0]->str==NULL) // User not found
+    else if (user->element[0]->str == NULL) { // User not found
       strcpy(r.reply, rails_usernotfound);
+    } 
 
     else { // User found
 
@@ -157,28 +165,42 @@ int main(int argc, char * argv[]){
       }
 
       // Allowed access
-      else if((reply->integer==0&&(strcmp(user->element[2]->str,"0")==0)) || 
-              (reply->integer==1&&(strcmp(user->element[2]->str,"1")==0)) )
+      else if ((reply->integer==0&&(strcmp(user->element[2]->str,"0")==0)) || 
+              (reply->integer==1&&(strcmp(user->element[2]->str,"1")==0))) {
 
         strcpy(r.reply, " ");
+      }
 
       // Unauthorized access 
-      else
+      else {
         strcpy(r.reply, rails_accessdenied);
+      }
 
-      // Access logs 
-      sprintf(sql, "INSERT DELAYED INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%d')", r.url, user->element[0]->str, strcmp(r.reply," ") ? 1 : 0);
-      if (mysql_query(conn, sql)) {
-        fprintf(stderr, "%s MySQL error: %s\n", timenow(), mysql_error(conn));
-        exit(1);
-    }
+      child = fork();
+
+      if (child < 0) {
+        fprintf(stderr, "%s Fork Error: Failed to fork child, access log not saved.", timenow());
+      }
+
+      if (child == 0) {
+        // Access logs 
+        sprintf(sql, "INSERT INTO accesslogs (acessed_at, url, user_id, blocked) VALUES (NOW(), '%.400s', '%s', '%d')", r.url, user->element[0]->str, strcmp(r.reply," ") ? 1 : 0);
+        if (mysql_query(conn, sql)) {
+          fprintf(stderr, "%s MySQL error: %s\n", timenow(), mysql_error(conn));
+          exit(1);
+        }
+      }
 
       freeReplyObject(reply);
+
     }
 
     freeReplyObject(user);
-    fprintf(stdout, "%s\n", r.reply);
-    fflush(stdout);
+
+    if (child != 0) {
+      fprintf(stdout, "%s\n", r.reply);
+      fflush(stdout);
+    }
   }
 
   return 0;
